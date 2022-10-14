@@ -1,6 +1,7 @@
 library(dplyr)
 library(tidyr)
 library(stylo)
+library(reshape2)
 
 #load in our data
 fiction_data <- read.csv("fiction_yearly_summary.csv", stringsAsFactors = F)
@@ -145,15 +146,15 @@ drama_data <- drama_data %>% filter(word != "ALLTOKENS")
 drama_data <- drama_data %>% filter(word != "DICTIONARYWORD")
 drama_data <- drama_data %>% filter(word != "ALPHABETIC")
 
+#1724, 1746 and 1749 are where the unbroken sequences of years begin, so we sum these into one year for each dataset
+fiction_data$year <- plyr::mapvalues(fiction_data$year, 1701:1724, rep(1724, length(1701:1724)))
+poetry_data$year <- plyr::mapvalues(poetry_data$year, 1700:1746, rep(1746, length(1700:1746)))
+drama_data$year <- plyr::mapvalues(drama_data$year, 1704:1749, rep(1749, length(1704:1749)))
+
 #aggreagate fiction, poetry and drama across year and word
 fiction_data <- aggregate(. ~ year + word, fiction_data, sum)
 poetry_data <- aggregate(. ~ year + word, poetry_data, sum)
 drama_data <- aggregate(. ~ year + word, drama_data, sum)
-
-#remove years prior to the setting in of an unbroken sequence
-fiction_data <- fiction_data %>% filter(year > 1749)
-poetry_data <- poetry_data %>% filter(year > 1749)
-drama_data <- drama_data %>% filter(year > 1749)
 
 #pivot the data wider
 fiction_data <- fiction_data %>% pivot_wider(names_from = word, values_from = termfreq, values_fill = 0, names_repair = "unique")
@@ -165,25 +166,28 @@ fiction_data[,2:dim(fiction_data)[2]] <- scale(fiction_data[,2:dim(fiction_data)
 poetry_data[,2:dim(poetry_data)[2]] <- scale(poetry_data[,2:dim(poetry_data)[2]] / rowSums(poetry_data[,2:dim(poetry_data)[2]]))
 drama_data[,2:dim(drama_data)[2]] <- scale(drama_data[,2:dim(drama_data)[2]] / rowSums(drama_data[,2:dim(drama_data)[2]]))
 
+#apply cosine distance to the datasets
 fiction_dist <- dist.cosine(as.matrix(fiction_data))
 poetry_dist <- dist.cosine(as.matrix(poetry_data))
 drama_dist <- dist.cosine(as.matrix(drama_data))
 
+#reshape the matrix into dataframes
 fiction_dist <- melt(as.matrix(fiction_dist), variable.names(c("to", "from")))
 poetry_dist <- melt(as.matrix(poetry_dist), variable.names(c("to", "from")))
 drama_dist <- melt(as.matrix(drama_dist), variable.names(c("to", "from")))
 
+#change the column names so we know the direction
 colnames(fiction_dist)[1:2] <- c("from", "to")
 colnames(poetry_dist)[1:2] <- c("from", "to")
 colnames(drama_dist)[1:2] <- c("from", "to")
 
 #and map our values
-fiction_dist$from <- plyr::mapvalues(fiction_dist$from, 1:173, fiction_data$year...1)
-fiction_dist$to <- plyr::mapvalues(fiction_dist$to, 1:173, fiction_data$year...1)
-poetry_dist$from <- plyr::mapvalues(poetry_dist$from, 1:173, poetry_data$year...1)
-poetry_dist$to <- plyr::mapvalues(poetry_dist$to, 1:173, poetry_data$year...1)
-drama_dist$from <- plyr::mapvalues(drama_dist$from, 1:173, drama_data$year...1)
-drama_dist$to <- plyr::mapvalues(drama_dist$to, 1:173, drama_data$year...1)
+fiction_dist$from <- plyr::mapvalues(fiction_dist$from, 1:199, fiction_data$year...1)
+fiction_dist$to <- plyr::mapvalues(fiction_dist$to, 1:199, fiction_data$year...1)
+poetry_dist$from <- plyr::mapvalues(poetry_dist$from, 1:177, poetry_data$year...1)
+poetry_dist$to <- plyr::mapvalues(poetry_dist$to, 1:177, poetry_data$year...1)
+drama_dist$from <- plyr::mapvalues(drama_dist$from, 1:174, drama_data$year...1)
+drama_dist$to <- plyr::mapvalues(drama_dist$to, 1:174, drama_data$year...1)
 
 #remove all our empty distances
 fiction_dist <- fiction_dist %>% filter(value != 0)
@@ -200,13 +204,13 @@ fiction_dist_backward <- fiction_dist %>% filter(to < from)
 poetry_dist_backward <- poetry_dist %>% filter(to < from)
 drama_dist_backward <- drama_dist %>% filter(to < from)
 
-#sum fiction poetry and drama by where the distance is coming from
-fiction_dist_forward <- fiction_dist_forward %>% group_by(from) %>% summarise(value = sum(value))
-poetry_dist_forward <- poetry_dist_forward %>% group_by(from) %>% summarise(value = sum(value))
-drama_dist_forward <- drama_dist_forward %>% group_by(from) %>% summarise(value = sum(value))
-fiction_dist_backward <- fiction_dist_backward %>% group_by(from) %>% summarise(value = sum(value))
-poetry_dist_backward <- poetry_dist_backward %>% group_by(from) %>% summarise(value = sum(value))
-drama_dist_backward <- drama_dist_backward %>% group_by(from) %>% summarise(value = sum(value))
+#mean fiction poetry and drama by where the distance is coming from
+fiction_dist_forward <- fiction_dist_forward %>% group_by(from) %>% summarise(value = mean(value))
+poetry_dist_forward <- poetry_dist_forward %>% group_by(from) %>% summarise(value = mean(value))
+drama_dist_forward <- drama_dist_forward %>% group_by(from) %>% summarise(value = mean(value))
+fiction_dist_backward <- fiction_dist_backward %>% group_by(from) %>% summarise(value = mean(value))
+poetry_dist_backward <- poetry_dist_backward %>% group_by(from) %>% summarise(value = mean(value))
+drama_dist_backward <- drama_dist_backward %>% group_by(from) %>% summarise(value = mean(value))
 
 #change the column names
 colnames(fiction_dist_forward)[2] <- "transience"
@@ -221,10 +225,10 @@ fiction_dist <- full_join(fiction_dist_backward, fiction_dist_forward, by = "fro
 poetry_dist <- full_join(poetry_dist_backward, poetry_dist_forward, by = "from")
 drama_dist <- full_join(drama_dist_backward, drama_dist_forward, by = "from")
 
-#remove the rows with NAs
-fiction_dist <- fiction_dist[-c(172:173),]
-poetry_dist <- poetry_dist[-c(172:173),]
-drama_dist <- drama_dist[-c(172:173),]
+#remove nas
+fiction_dist <- fiction_dist[complete.cases(fiction_dist), ]
+poetry_dist <- poetry_dist[complete.cases(poetry_dist), ]
+drama_dist <- drama_dist[complete.cases(drama_dist), ]
 
 #calculate resonance and attach it to the dataframe
 fiction_dist$resonance <- fiction_dist$novelty - fiction_dist$transience
@@ -235,5 +239,16 @@ drama_dist$resonance <- drama_dist$novelty - drama_dist$transience
 fiction_dist[,2:4] <- scale(fiction_dist[,2:4])
 poetry_dist[,2:4] <- scale(poetry_dist[,2:4])
 drama_dist[,2:4] <- scale(drama_dist[,2:4])
+
+#change the column names
+colnames(fiction_dist)[1] <- "year"
+colnames(poetry_dist)[1] <- "year"
+colnames(drama_dist)[1] <- "year"
+
+cor(fiction_dist, method = c("pearson", "kendall", "spearman"))
+cor(poetry_dist, method = c("pearson", "kendall", "spearman"))
+cor(drama_dist, method = c("pearson", "kendall", "spearman"))
+
+
 
 
