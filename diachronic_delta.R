@@ -1,6 +1,5 @@
 library(dplyr)
 library(tidyr)
-library(stylo)
 library(reshape2)
 
 #load in our data
@@ -16,36 +15,7 @@ fiction_data$correctionapplied <- NULL
 poetry_data$correctionapplied <- NULL
 drama_data$correctionapplied <- NULL
 
-#create alpha_vector which contains every letter of the alphabet as well as an empty element
-alpha_vector <- c("", "ALLTOKENS", "DICTIONARYWORD", "ALPHABETIC", letters[-c(1, 9)])#
-
-x <- fiction_data$word
-
-#declare a function called clean_word which removes the character variables we want to remove 
-clean_word <- function(x) {
-  x <- gsub('[[:punct:]]+','', x)
-  x <- gsub("[[:space:]]",'', x)
-  x <- gsub("0", "NULL", x)
-  x <- gsub("1", "NULL", x)
-  x <- gsub("2", "NULL", x)
-  x <- gsub("3", "NULL", x)
-  x <- gsub("4", "NULL", x)
-  x <- gsub("5", "NULL", x)
-  x <- gsub("6", "NULL", x)
-  x <- gsub("7", "NULL", x)
-  x <- gsub("8", "NULL", x)
-  x <- gsub("9", "NULL", x)
-  x <- gsub("0", "NULL", x)
-  x[which(x %in% roman_numerals[,1])] <- "NULL"
-  x[which(x %in% alpha_vector)] <- "NULL"
-  return(x)
-}
-
-fiction_data$word <- clean_word(fiction_data$word)
-poetry_data$word <- clean_word(poetry_data$word)
-drama_data$word <- clean_word(drama_data$word)
-
-#this is obviously all a catastrophe, but for some reason R gets temperamental whne I try to apply these at once 
+#strip spaces and punctuation from the word columns
 fiction_data$word <- gsub('[[:punct:]]+','', fiction_data$word)
 poetry_data$word <- gsub('[[:punct:]]+','', poetry_data$word)
 drama_data$word <- gsub('[[:punct:]]+','', drama_data$word)
@@ -53,127 +23,33 @@ fiction_data$word <- gsub("[[:space:]]", "", fiction_data$word)
 poetry_data$word <- gsub('[[:space:]]','', poetry_data$word)
 drama_data$word <- gsub('[[:space:]]','', drama_data$word)
 
-fiction_data <- fiction_data[which(!grepl("0", fiction_data$word)),]
-fiction_data <- fiction_data[which(!grepl("1", fiction_data$word)),]
-fiction_data <- fiction_data[which(!grepl("2", fiction_data$word)),]
-fiction_data <- fiction_data[which(!grepl("3", fiction_data$word)),]
-fiction_data <- fiction_data[which(!grepl("4", fiction_data$word)),]
-fiction_data <- fiction_data[which(!grepl("5", fiction_data$word)),]
-fiction_data <- fiction_data[which(!grepl("6", fiction_data$word)),]
-fiction_data <- fiction_data[which(!grepl("7", fiction_data$word)),]
-fiction_data <- fiction_data[which(!grepl("8", fiction_data$word)),]
-fiction_data <- fiction_data[which(!grepl("9", fiction_data$word)),]
+#declare the funtion clean data, which replaces every element with a number with NULL
+clean_data <- function(x) {
+  x[which(grepl("0", x))] <- "NULL"
+  x[which(grepl("1", x))] <- "NULL"
+  x[which(grepl("2", x))] <- "NULL"
+  x[which(grepl("3", x))] <- "NULL"
+  x[which(grepl("4", x))] <- "NULL"
+  x[which(grepl("5", x))] <- "NULL"
+  x[which(grepl("6", x))] <- "NULL"
+  x[which(grepl("7", x))] <- "NULL"
+  x[which(grepl("8", x))] <- "NULL"
+  x[which(grepl("9", x))] <- "NULL"
+  return(x)
+}
 
-poetry_data <- poetry_data[which(!grepl("0", poetry_data$word)),]
-poetry_data <- poetry_data[which(!grepl("1", poetry_data$word)),]
-poetry_data <- poetry_data[which(!grepl("2", poetry_data$word)),]
-poetry_data <- poetry_data[which(!grepl("3", poetry_data$word)),]
-poetry_data <- poetry_data[which(!grepl("4", poetry_data$word)),]
-poetry_data <- poetry_data[which(!grepl("5", poetry_data$word)),]
-poetry_data <- poetry_data[which(!grepl("6", poetry_data$word)),]
-poetry_data <- poetry_data[which(!grepl("7", poetry_data$word)),]
-poetry_data <- poetry_data[which(!grepl("8", poetry_data$word)),]
-poetry_data <- poetry_data[which(!grepl("9", poetry_data$word)),]
+#apply clean data to each of the word vectors
+fiction_data$word <- clean_data(fiction_data$word)
+poetry_data$word <- clean_data(poetry_data$word)
+drama_data$word <- clean_data(drama_data$word)
 
-drama_data <- drama_data[which(!grepl("0", drama_data$word)),]
-drama_data <- drama_data[which(!grepl("1", drama_data$word)),]
-drama_data <- drama_data[which(!grepl("2", drama_data$word)),]
-drama_data <- drama_data[which(!grepl("3", drama_data$word)),]
-drama_data <- drama_data[which(!grepl("4", drama_data$word)),]
-drama_data <- drama_data[which(!grepl("5", drama_data$word)),]
-drama_data <- drama_data[which(!grepl("6", drama_data$word)),]
-drama_data <- drama_data[which(!grepl("7", drama_data$word)),]
-drama_data <- drama_data[which(!grepl("8", drama_data$word)),]
-drama_data <- drama_data[which(!grepl("9", drama_data$word)),]
+#create alpha_vector which contains every letter of the alphabet, except a and i, an empty element, roman numerals and a few other artefacts we want to tidy up 
+alpha_vector <- c("", "ALLTOKENS", "DICTIONARYWORD", "ALPHABETIC", letters[-c(1, 9)], roman_numerals[,1], "NULL")
 
-#then we remove all the details we don't want
-fiction_data <- fiction_data %>% filter(!word %in% roman_numerals[,1])
-poetry_data <- poetry_data %>% filter(!word %in% roman_numerals[,1])
-drama_data <- drama_data %>% filter(!word %in% roman_numerals[,1])
-
-fiction_data <- fiction_data %>% filter(word != "")
-fiction_data <- fiction_data %>% filter(word != "b")
-fiction_data <- fiction_data %>% filter(word != "c")
-fiction_data <- fiction_data %>% filter(word != "d")
-fiction_data <- fiction_data %>% filter(word != "e")
-fiction_data <- fiction_data %>% filter(word != "f")
-fiction_data <- fiction_data %>% filter(word != "g")
-fiction_data <- fiction_data %>% filter(word != "h")
-fiction_data <- fiction_data %>% filter(word != "j")
-fiction_data <- fiction_data %>% filter(word != "k")
-fiction_data <- fiction_data %>% filter(word != "l")
-fiction_data <- fiction_data %>% filter(word != "m")
-fiction_data <- fiction_data %>% filter(word != "n")
-fiction_data <- fiction_data %>% filter(word != "p")
-fiction_data <- fiction_data %>% filter(word != "q")
-fiction_data <- fiction_data %>% filter(word != "r")
-fiction_data <- fiction_data %>% filter(word != "s")
-fiction_data <- fiction_data %>% filter(word != "t")
-fiction_data <- fiction_data %>% filter(word != "u")
-fiction_data <- fiction_data %>% filter(word != "v")
-fiction_data <- fiction_data %>% filter(word != "w")
-fiction_data <- fiction_data %>% filter(word != "x")
-fiction_data <- fiction_data %>% filter(word != "y")
-fiction_data <- fiction_data %>% filter(word != "z")
-fiction_data <- fiction_data %>% filter(word != "ALLTOKENS")
-fiction_data <- fiction_data %>% filter(word != "DICTIONARYWORD")
-fiction_data <- fiction_data %>% filter(word != "ALPHABETIC")
-
-poetry_data <- poetry_data %>% filter(word != "")
-poetry_data <- poetry_data %>% filter(word != "b")
-poetry_data <- poetry_data %>% filter(word != "c")
-poetry_data <- poetry_data %>% filter(word != "d")
-poetry_data <- poetry_data %>% filter(word != "e")
-poetry_data <- poetry_data %>% filter(word != "f")
-poetry_data <- poetry_data %>% filter(word != "g")
-poetry_data <- poetry_data %>% filter(word != "h")
-poetry_data <- poetry_data %>% filter(word != "j")
-poetry_data <- poetry_data %>% filter(word != "k")
-poetry_data <- poetry_data %>% filter(word != "l")
-poetry_data <- poetry_data %>% filter(word != "m")
-poetry_data <- poetry_data %>% filter(word != "n")
-poetry_data <- poetry_data %>% filter(word != "p")
-poetry_data <- poetry_data %>% filter(word != "q")
-poetry_data <- poetry_data %>% filter(word != "r")
-poetry_data <- poetry_data %>% filter(word != "s")
-poetry_data <- poetry_data %>% filter(word != "t")
-poetry_data <- poetry_data %>% filter(word != "u")
-poetry_data <- poetry_data %>% filter(word != "v")
-poetry_data <- poetry_data %>% filter(word != "w")
-poetry_data <- poetry_data %>% filter(word != "x")
-poetry_data <- poetry_data %>% filter(word != "y")
-poetry_data <- poetry_data %>% filter(word != "z")
-poetry_data <- poetry_data %>% filter(word != "ALLTOKENS")
-poetry_data <- poetry_data %>% filter(word != "DICTIONARYWORD")
-poetry_data <- poetry_data %>% filter(word != "ALPHABETIC")
-
-drama_data <- drama_data %>% filter(word != "")
-drama_data <- drama_data %>% filter(word != "b")
-drama_data <- drama_data %>% filter(word != "c")
-drama_data <- drama_data %>% filter(word != "d")
-drama_data <- drama_data %>% filter(word != "e")
-drama_data <- drama_data %>% filter(word != "f")
-drama_data <- drama_data %>% filter(word != "g")
-drama_data <- drama_data %>% filter(word != "h")
-drama_data <- drama_data %>% filter(word != "j")
-drama_data <- drama_data %>% filter(word != "k")
-drama_data <- drama_data %>% filter(word != "l")
-drama_data <- drama_data %>% filter(word != "m")
-drama_data <- drama_data %>% filter(word != "n")
-drama_data <- drama_data %>% filter(word != "p")
-drama_data <- drama_data %>% filter(word != "q")
-drama_data <- drama_data %>% filter(word != "r")
-drama_data <- drama_data %>% filter(word != "s")
-drama_data <- drama_data %>% filter(word != "t")
-drama_data <- drama_data %>% filter(word != "u")
-drama_data <- drama_data %>% filter(word != "v")
-drama_data <- drama_data %>% filter(word != "w")
-drama_data <- drama_data %>% filter(word != "x")
-drama_data <- drama_data %>% filter(word != "y")
-drama_data <- drama_data %>% filter(word != "z")
-drama_data <- drama_data %>% filter(word != "ALLTOKENS")
-drama_data <- drama_data %>% filter(word != "DICTIONARYWORD")
-drama_data <- drama_data %>% filter(word != "ALPHABETIC")
+#remove every element in alpha vector from the data
+fiction_data <- fiction_data %>% filter(!word %in% alpha_vector)
+poetry_data <- poetry_data %>% filter(!word %in% alpha_vector)
+drama_data <- drama_data %>% filter(!word %in% alpha_vector)
 
 #1724, 1746 and 1749 are where the unbroken sequences of years begin, so we sum these into one year for each dataset
 fiction_data$year <- plyr::mapvalues(fiction_data$year, 1701:1724, rep(1724, length(1701:1724)))
@@ -274,9 +150,136 @@ colnames(fiction_dist)[1] <- "year"
 colnames(poetry_dist)[1] <- "year"
 colnames(drama_dist)[1] <- "year"
 
-cor(fiction_dist, method = c("pearson", "kendall", "spearman"))
-cor(poetry_dist, method = c("pearson", "kendall", "spearman"))
-cor(drama_dist, method = c("pearson", "kendall", "spearman"))
+cor(fiction_dist)
+cor(poetry_dist)
+cor(drama_dist)
+
+#produce a scatter plot of the relationship between population and number of branches in each LA
+p <- ggplot(fiction_dist, aes(novelty, resonance)) + 
+  labs(title = "Relationship between novelty and resonance in the fiction corpus") +
+  geom_point() +
+  stat_smooth(method = "lm") +
+  xlab("Novelty") +
+  ylab("Resonance")
+
+#print the plot
+p
+
+#produce a scatter plot of the relationship between population and number of branches in each LA
+p <- ggplot(poetry_dist, aes(novelty, resonance)) + 
+  labs(title = "Relationship between novelty and resonance in the poetry corpus") +
+  geom_point() +
+  stat_smooth(method = "lm") +
+  xlab("Novelty") +
+  ylab("Resonance")
+
+p
+
+#produce a scatter plot of the relationship between population and number of branches in each LA
+p <- ggplot(drama_dist, aes(novelty, resonance)) + 
+  labs(title = "Relationship between novelty and resonance in the drama corpus") +
+  geom_point() +
+  stat_smooth(method = "lm") +
+  xlab("Novelty") +
+  ylab("Resonance")
+
+p
+
+
+
+
+data <- readRDS("fiction_frequencies.rds")
+
+#then we remove the first four characters from the colnames of 
+#data so that the colnames can be accurate
+for(i in 1:length(colnames(data))) {
+  colnames(data)[i] <- substr(colnames(data)[i], 5, 
+                              nchar(colnames(data)[i]))
+}
+
+#replace the first colname with Date
+colnames(data)[1] <- "Date"
+
+#create yearvector which is going to hold all our dates so 
+#we can call on them easily
+yearvector <- data$Date
+
+#our most pronounced break is 1837 so we need the we need the 
+#82 years which exist on either side of 1837, partitioned into 
+#two separate tibbles, pre and post
+pre <- data %>% filter(Date < 1837)
+pre <- pre %>% filter(Date > 1755)
+post <- data %>% filter(Date > 1837)
+post <- post %>% filter(Date < 1919)
+
+#replace the date column with either zero or one
+pre$Date <- 0
+post$Date <- 1
+
+pre <- as.data.frame(pre)
+post <- as.data.frame(post)
+
+#create analysis, which incorporates both pre and post
+analysis <- rbind(pre, post)
+
+#turn our date column into a factor
+analysis$Date <- as.factor(analysis$Date)
+
+#take the ID variable out of the dataframe
+ID <- analysis$Date
+
+confusionone <- 0
+upwordsone <- 0
+downwordsone <- 0
+
+for(i in 1:100) {
+  #create our trainining data, which randomly samples 20% 
+  #of our pre and post datasets
+  train <- rbind(analysis[sample(which(analysis$Date == 0), 
+                                 round(0.2*length(which(analysis$Date == 0)))), ],                                               analysis[sample(which(analysis$Date == 1),                                                    round(0.2*length(which(analysis$Date == 1)))), ])
+  #create our test data, which will incorporate everything 
+  #from analysis not contained in our training data
+  test <- anti_join(analysis, train)
+  #take our training and test data 
+  #from the train and test dataframes
+  trainID <- train$Date
+  testID <- test$Date
+  #drop these columns from the training, test
+  train$Date <- NULL
+  test$Date <- NULL
+  #we convert the data into a matrix as 
+  #this is the data structure glmnet needs
+  train <- as.matrix(train)
+  test <- as.matrix(test)
+  #we then perform a cross-validated fit
+  cvfit <- cv.glmnet(train, trainID, family = "binomial", 
+                     type.measure = "class", alpha = 0)
+  #create a confusion matrix to see how often 
+  #one was predicted as the other and vice versa
+  confusionmatrix <- confusion.glmnet(cvfit, newx = test, 
+                                      newy = testID, s = "lambda.min")
+  #extract confusionmatrix values
+  confusionone <- c(confusionone, round((confusionmatrix[1] 
+                                         + confusionmatrix[4]) / 
+                                          sum(confusionmatrix) * 100, 2))
+  analysisduplicate <- analysis
+  analysisduplicate$Date <- NULL
+  #re-create analysis as a matrix
+  analysisduplicate <- as.matrix(analysisduplicate)
+  #extract the prediction statistics
+  predictions <- predict(cvfit, analysisduplicate, 
+                         s = "lambda.min", type = "response")
+  #and print the words which are positively correlated
+  upword <- as_tibble(cor(predictions, 
+                          analysisduplicate))[which(as_tibble(cor(predictions, 
+                                                                  analysisduplicate)) >= 0.7)]
+  upwordsone <- c(upwordsone, upword)
+  #and the negatively correlated words
+  downword <- as_tibble(cor(predictions, 
+                            analysisduplicate))[which(as_tibble(cor(predictions, 
+                                                                    analysisduplicate)) <= -0.7)]
+  downwordsone <- c(downwordsone, downword)
+}
 
 
 
