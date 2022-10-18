@@ -16,6 +16,35 @@ fiction_data$correctionapplied <- NULL
 poetry_data$correctionapplied <- NULL
 drama_data$correctionapplied <- NULL
 
+#create alpha_vector which contains every letter of the alphabet as well as an empty element
+alpha_vector <- c("", "ALLTOKENS", "DICTIONARYWORD", "ALPHABETIC", letters[-c(1, 9)])#
+
+x <- fiction_data$word
+
+#declare a function called clean_word which removes the character variables we want to remove 
+clean_word <- function(x) {
+  x <- gsub('[[:punct:]]+','', x)
+  x <- gsub("[[:space:]]",'', x)
+  x <- gsub("0", "NULL", x)
+  x <- gsub("1", "NULL", x)
+  x <- gsub("2", "NULL", x)
+  x <- gsub("3", "NULL", x)
+  x <- gsub("4", "NULL", x)
+  x <- gsub("5", "NULL", x)
+  x <- gsub("6", "NULL", x)
+  x <- gsub("7", "NULL", x)
+  x <- gsub("8", "NULL", x)
+  x <- gsub("9", "NULL", x)
+  x <- gsub("0", "NULL", x)
+  x[which(x %in% roman_numerals[,1])] <- "NULL"
+  x[which(x %in% alpha_vector)] <- "NULL"
+  return(x)
+}
+
+fiction_data$word <- clean_word(fiction_data$word)
+poetry_data$word <- clean_word(poetry_data$word)
+drama_data$word <- clean_word(drama_data$word)
+
 #this is obviously all a catastrophe, but for some reason R gets temperamental whne I try to apply these at once 
 fiction_data$word <- gsub('[[:punct:]]+','', fiction_data$word)
 poetry_data$word <- gsub('[[:punct:]]+','', poetry_data$word)
