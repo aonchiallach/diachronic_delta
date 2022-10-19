@@ -20,6 +20,8 @@ In all corpora there is a positive correlation between novelty and transience, s
 
 In the poetry and drama corpus one year was found which fit this profile, 1748 and 1756 respectively. However, these are both within ten years of the start of the dataset. This is a problem firstly because these are the years in each dataset where the number of texts begin to scale upwards significantly; there are greater amounts of words being introduced in these years, just as a function of the amount of works and as a consequence greater amounts of novelty. The numbers of texts continue to increase; these words do not go anywhere, so there is more than a risk that what we are capturing here is a proxy variable for the distribution of texts over time. This is also a problem because it would leave us with an insufficent sample size to run a regression; we would need a sample of at least twenty years to construct a robust model. 
 
+As such, we break each dataset into two parts at their halfway points; fiction at 1823, poetry at 1834, drama at 1835
+
 # Conclusions / Future Work
 
 Larger corpus
