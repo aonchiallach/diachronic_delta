@@ -32,14 +32,18 @@ clean_data <- function(x) {
   return(x)
 }
 
-return_dist_object <- function(x) {
+normalise_data <- function(x) {
   x <- aggregate(. ~ year + word, x, sum)
   x <- x %>% pivot_wider(names_from = word, values_from = termfreq, values_fill = 0, names_repair = "unique")
   x[,2:dim(x)[2]] <- scale(x[,2:dim(x)[2]] / rowSums(x[,2:dim(x)[2]]))
-  y <- dist.cosine(as.matrix(x))
-  y <- melt(as.matrix(y), variable.names(c("to", "from")))
-  colnames(y)[1:2] <- c("from", "to")
-  return(y)
+  return(x)
+}
+
+return_dist_object <- function(x) {
+  x <- dist.cosine(as.matrix(x))
+  x <- melt(as.matrix(x), variable.names(c("to", "from")))
+  colnames(x)[1:2] <- c("from", "to")
+  return(x)
 }
 
 #load in our data
@@ -50,7 +54,7 @@ drama_data <- read.csv("drama_yearly_summary.csv", stringsAsFactors = F)
 #read in roman numerals text file
 roman_numerals <- read.csv("romannumerals.txt", stringsAsFactors = F)
 
-#drop this column as we do not need it
+#drop these columns as we do not need them
 fiction_data$correctionapplied <- NULL
 poetry_data$correctionapplied <- NULL
 drama_data$correctionapplied <- NULL
@@ -80,6 +84,10 @@ drama_data <- drama_data %>% filter(!word %in% alpha_vector)
 fiction_data$year <- plyr::mapvalues(fiction_data$year, 1701:1724, rep(1724, length(1701:1724)))
 poetry_data$year <- plyr::mapvalues(poetry_data$year, 1700:1746, rep(1746, length(1700:1746)))
 drama_data$year <- plyr::mapvalues(drama_data$year, 1704:1749, rep(1749, length(1704:1749)))
+
+fiction_data <- normalise_data(fiction_data)
+poetry_data <- normalise_data(poetry_data)
+drama_data <- normalise_data(drama_data)
 
 #call the function on each dataset
 fiction_dist <- return_dist_object(fiction_data)
