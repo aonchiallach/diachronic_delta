@@ -1,6 +1,46 @@
+#load the libraries we need
 library(dplyr)
 library(tidyr)
 library(reshape2)
+library(ggplot2)
+library(stylo)
+
+#declare the funtions we're going to use; clean_data highlights elements in the word vector we want rid of and return_dist_object takes the completed relative frequency table and gives us the results of a distance algorithm
+clean_data <- function(x) {
+  x <- gsub('[[:punct:]]+','', x)
+  x <- gsub("[[:space:]]", "", x)
+  x[which(grepl("0", x))] <- "NULL"
+  x[which(grepl("1", x))] <- "NULL"
+  x[which(grepl("2", x))] <- "NULL"
+  x[which(grepl("3", x))] <- "NULL"
+  x[which(grepl("4", x))] <- "NULL"
+  x[which(grepl("5", x))] <- "NULL"
+  x[which(grepl("6", x))] <- "NULL"
+  x[which(grepl("7", x))] <- "NULL"
+  x[which(grepl("8", x))] <- "NULL"
+  x[which(grepl("9", x))] <- "NULL"
+  x[which(grepl("Â", x))] <- "NULL"
+  x[which(grepl("â", x))] <- "NULL"
+  x[which(grepl("2", x))] <- "NULL"
+  x[which(grepl("3", x))] <- "NULL"
+  x[which(grepl("4", x))] <- "NULL"
+  x[which(grepl("5", x))] <- "NULL"
+  x[which(grepl("6", x))] <- "NULL"
+  x[which(grepl("7", x))] <- "NULL"
+  x[which(grepl("8", x))] <- "NULL"
+  x[which(grepl("9", x))] <- "NULL"
+  return(x)
+}
+
+return_dist_object <- function(x) {
+  x <- aggregate(. ~ year + word, x, sum)
+  x <- x %>% pivot_wider(names_from = word, values_from = termfreq, values_fill = 0, names_repair = "unique")
+  x[,2:dim(x)[2]] <- scale(x[,2:dim(x)[2]] / rowSums(x[,2:dim(x)[2]]))
+  y <- dist.cosine(as.matrix(x))
+  y <- melt(as.matrix(y), variable.names(c("to", "from")))
+  colnames(y)[1:2] <- c("from", "to")
+  return(y)
+}
 
 #load in our data
 fiction_data <- read.csv("fiction_yearly_summary.csv", stringsAsFactors = F)
@@ -23,21 +63,6 @@ fiction_data$word <- gsub("[[:space:]]", "", fiction_data$word)
 poetry_data$word <- gsub('[[:space:]]','', poetry_data$word)
 drama_data$word <- gsub('[[:space:]]','', drama_data$word)
 
-#declare the funtion clean data, which replaces every element with a number with NULL
-clean_data <- function(x) {
-  x[which(grepl("0", x))] <- "NULL"
-  x[which(grepl("1", x))] <- "NULL"
-  x[which(grepl("2", x))] <- "NULL"
-  x[which(grepl("3", x))] <- "NULL"
-  x[which(grepl("4", x))] <- "NULL"
-  x[which(grepl("5", x))] <- "NULL"
-  x[which(grepl("6", x))] <- "NULL"
-  x[which(grepl("7", x))] <- "NULL"
-  x[which(grepl("8", x))] <- "NULL"
-  x[which(grepl("9", x))] <- "NULL"
-  return(x)
-}
-
 #apply clean data to each of the word vectors
 fiction_data$word <- clean_data(fiction_data$word)
 poetry_data$word <- clean_data(poetry_data$word)
@@ -56,35 +81,10 @@ fiction_data$year <- plyr::mapvalues(fiction_data$year, 1701:1724, rep(1724, len
 poetry_data$year <- plyr::mapvalues(poetry_data$year, 1700:1746, rep(1746, length(1700:1746)))
 drama_data$year <- plyr::mapvalues(drama_data$year, 1704:1749, rep(1749, length(1704:1749)))
 
-#aggreagate fiction, poetry and drama across year and word
-fiction_data <- aggregate(. ~ year + word, fiction_data, sum)
-poetry_data <- aggregate(. ~ year + word, poetry_data, sum)
-drama_data <- aggregate(. ~ year + word, drama_data, sum)
-
-#pivot the data wider
-fiction_data <- fiction_data %>% pivot_wider(names_from = word, values_from = termfreq, values_fill = 0, names_repair = "unique")
-poetry_data <- poetry_data %>% pivot_wider(names_from = word, values_from = termfreq, values_fill = 0, names_repair = "unique")
-drama_data <- drama_data %>% pivot_wider(names_from = word, values_from = termfreq, values_fill = 0, names_repair = "unique")
-
-#turn all the raw counts into relative frequencies, normalise them by column
-fiction_data[,2:dim(fiction_data)[2]] <- scale(fiction_data[,2:dim(fiction_data)[2]] / rowSums(fiction_data[,2:dim(fiction_data)[2]]))
-poetry_data[,2:dim(poetry_data)[2]] <- scale(poetry_data[,2:dim(poetry_data)[2]] / rowSums(poetry_data[,2:dim(poetry_data)[2]]))
-drama_data[,2:dim(drama_data)[2]] <- scale(drama_data[,2:dim(drama_data)[2]] / rowSums(drama_data[,2:dim(drama_data)[2]]))
-
-#apply cosine distance to the datasets
-fiction_dist <- dist.cosine(as.matrix(fiction_data))
-poetry_dist <- dist.cosine(as.matrix(poetry_data))
-drama_dist <- dist.cosine(as.matrix(drama_data))
-
-#reshape the matrix into dataframes
-fiction_dist <- melt(as.matrix(fiction_dist), variable.names(c("to", "from")))
-poetry_dist <- melt(as.matrix(poetry_dist), variable.names(c("to", "from")))
-drama_dist <- melt(as.matrix(drama_dist), variable.names(c("to", "from")))
-
-#change the column names so we know the direction
-colnames(fiction_dist)[1:2] <- c("from", "to")
-colnames(poetry_dist)[1:2] <- c("from", "to")
-colnames(drama_dist)[1:2] <- c("from", "to")
+#call the function on each dataset
+fiction_dist <- return_dist_object(fiction_data)
+poetry_dist <- return_dist_object(poetry_data)
+drama_dist <- return_dist_object(drama_data)
 
 #and map our values
 fiction_dist$from <- plyr::mapvalues(fiction_dist$from, 1:199, fiction_data$year...1)
@@ -150,6 +150,7 @@ colnames(fiction_dist)[1] <- "year"
 colnames(poetry_dist)[1] <- "year"
 colnames(drama_dist)[1] <- "year"
 
+#run a correlation analysis across the three datasets
 cor(fiction_dist)
 cor(poetry_dist)
 cor(drama_dist)
@@ -184,6 +185,36 @@ p <- ggplot(drama_dist, aes(novelty, resonance)) +
   ylab("Resonance")
 
 p
+
+
+
+#get rid of the character columns
+fiction_data_corr <- fiction_data[, !sapply(fiction_data, is.character)]
+
+fiction_data_corr$year...1 <- NULL
+
+#convert fiction_data_corr into a fiction_data_corrframe
+fiction_data_corr <- as.data.frame(fiction_data_corr)
+
+#remove the columns where standard deviation is zero
+fiction_data_corr[,apply(fiction_data_corr, 2, sd) == 0] <- NULL
+
+#create a correlation matrix
+fiction_data_corr <- cor(fiction_data_corr)
+
+#now we turn the correlation matrix into a fiction_data_corr frame and then a tibble
+fiction_data_corr <- na.omit(as_tibble(data.frame(row=rownames(fiction_data_corr)[row(fiction_data_corr)], col=colnames(fiction_data_corr)[col(fiction_data_corr)], fiction_data_corr=c(fiction_data_corr))))
+
+#remove every insignificant effect size
+fiction_data_corr <- fiction_data_corr %>% filter(fiction_data_corr >= 0.7 | fiction_data_corr <= -0.7)
+
+#round the correlation coefficients to two decimal points
+fiction_data_corr$fiction_data_corr <- round(fiction_data_corr$fiction_data_corr, 2)
+
+#remove autocorrelations
+fiction_data_corr <- fiction_data_corr[!fiction_data_corr$row == fiction_data_corr$col,]
+
+
 
 
 
