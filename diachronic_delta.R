@@ -4,6 +4,7 @@ library(tidyr)
 library(reshape2)
 library(ggplot2)
 library(stylo)
+library(glmnet)
 
 #declare the funtions we're going to use
 
@@ -52,7 +53,7 @@ return_dist_object <- function(x) {
 
 #correlation analysis gives us a neat object that can be used to carry out a rudimentary topic model, i.e. filtering for words like 'love', or 'home' to see what terms correlate positively or negatively across time
 correlation_analysis <- function(x) {
-  y <- fiction_data[, !sapply(fiction_data, is.character)]
+  y <- x[, !sapply(x, is.character)]
   y$year...1 <- NULL
   y <- as.data.frame(y)
   y[,apply(y, 2, sd) == 0] <- NULL
@@ -218,104 +219,78 @@ p <- ggplot(drama_dist, aes(novelty, resonance)) +
 
 p
 
+#there are no years which score both a resonance and novelty of over 2 in the fiction dataset, 1750 comes closest
+fiction_dist %>% filter(novelty > 2)
 
+#in poetry 1748 does
+poetry_dist %>% filter(novelty > 2 & resonance > 2)
 
+#and in drama 1756
+drama_dist %>% filter(novelty > 2 & resonance > 2)
 
-
-
-
-data <- readRDS("fiction_frequencies.rds")
-
-#then we remove the first four characters from the colnames of 
-#data so that the colnames can be accurate
-for(i in 1:length(colnames(data))) {
-  colnames(data)[i] <- substr(colnames(data)[i], 5, 
-                              nchar(colnames(data)[i]))
-}
-
-#replace the first colname with Date
-colnames(data)[1] <- "Date"
-
-#create yearvector which is going to hold all our dates so 
-#we can call on them easily
-yearvector <- data$Date
-
-#our most pronounced break is 1837 so we need the we need the 
-#82 years which exist on either side of 1837, partitioned into 
-#two separate tibbles, pre and post
-pre <- data %>% filter(Date < 1837)
-pre <- pre %>% filter(Date > 1755)
-post <- data %>% filter(Date > 1837)
-post <- post %>% filter(Date < 1919)
+#our most pronounced break is 1750 so we need the we need the 82 years which exist on either side of 1837, partitioned into two separate tibbles, pre and post
+pre <- fiction_data %>% filter(year...1 < 1750)
+post <- fiction_data %>% filter(year...1 < 1777 & year...1 > 1750)
 
 #replace the date column with either zero or one
-pre$Date <- 0
-post$Date <- 1
+pre$year...1 <- 0
+post$year...1 <- 1
 
+#turn pre and post into dataframes
 pre <- as.data.frame(pre)
 post <- as.data.frame(post)
 
 #create analysis, which incorporates both pre and post
 analysis <- rbind(pre, post)
 
-#turn our date column into a factor
-analysis$Date <- as.factor(analysis$Date)
+#turn our year column into a factor
+analysis$year...1 <- as.factor(analysis$year...1)
 
-#take the ID variable out of the dataframe
-ID <- analysis$Date
+#create empty varibles for our confusion
+fiction_confusion_one <- 0
+fiction_upwords_one <- 0
+fiction_downwords_one <- 0
 
-confusionone <- 0
-upwordsone <- 0
-downwordsone <- 0
+#create a train set
+sample <- sample(c(TRUE, FALSE), nrow(analysis), replace=TRUE, prob=c(0.7,0.3))
+train <- analysis[sample,]
+test <- analysis[!sample,]
 
-for(i in 1:100) {
-  #create our trainining data, which randomly samples 20% 
-  #of our pre and post datasets
-  train <- rbind(analysis[sample(which(analysis$Date == 0), 
-                                 round(0.2*length(which(analysis$Date == 0)))), ],                                               analysis[sample(which(analysis$Date == 1),                                                    round(0.2*length(which(analysis$Date == 1)))), ])
-  #create our test data, which will incorporate everything 
-  #from analysis not contained in our training data
-  test <- anti_join(analysis, train)
-  #take our training and test data 
-  #from the train and test dataframes
-  trainID <- train$Date
-  testID <- test$Date
-  #drop these columns from the training, test
-  train$Date <- NULL
-  test$Date <- NULL
-  #we convert the data into a matrix as 
-  #this is the data structure glmnet needs
-  train <- as.matrix(train)
-  test <- as.matrix(test)
-  #we then perform a cross-validated fit
-  cvfit <- cv.glmnet(train, trainID, family = "binomial", 
-                     type.measure = "class", alpha = 0)
-  #create a confusion matrix to see how often 
-  #one was predicted as the other and vice versa
-  confusionmatrix <- confusion.glmnet(cvfit, newx = test, 
-                                      newy = testID, s = "lambda.min")
-  #extract confusionmatrix values
-  confusionone <- c(confusionone, round((confusionmatrix[1] 
-                                         + confusionmatrix[4]) / 
-                                          sum(confusionmatrix) * 100, 2))
-  analysisduplicate <- analysis
-  analysisduplicate$Date <- NULL
-  #re-create analysis as a matrix
-  analysisduplicate <- as.matrix(analysisduplicate)
-  #extract the prediction statistics
-  predictions <- predict(cvfit, analysisduplicate, 
-                         s = "lambda.min", type = "response")
-  #and print the words which are positively correlated
-  upword <- as_tibble(cor(predictions, 
-                          analysisduplicate))[which(as_tibble(cor(predictions, 
-                                                                  analysisduplicate)) >= 0.7)]
-  upwordsone <- c(upwordsone, upword)
-  #and the negatively correlated words
-  downword <- as_tibble(cor(predictions, 
-                            analysisduplicate))[which(as_tibble(cor(predictions, 
-                                                                    analysisduplicate)) <= -0.7)]
-  downwordsone <- c(downwordsone, downword)
-}
+#take our training and test data from the train and test dataframes
+trainID <- train$year...1
+testID <- test$year...1
+
+#drop these columns from the training, test
+train$year...1 <- NULL
+test$year...1 <- NULL
+
+#we convert the data into a matrix as this is the data structure glmnet needs
+train <- as.matrix(train)
+test <- as.matrix(test)
+
+#we then perform a cross-validated fit
+cvfit <- cv.glmnet(train, trainID, family = "binomial", type.measure = "class", alpha = 0)
+
+#create a confusion matrix to see how often one was predicted as the other and vice versa
+confusion_matrix <- confusion.glmnet(cvfit, newx = test, newy = testID, s = "lambda.min")
+
+#call the confusion matrix
+confusion_matrix
+
+#drop the year column from analysis
+analysis$year...1 <- NULL
+
+#re-create analysis as a matrix
+analysis <- as.matrix(analysis)
+
+#extract the prediction statistics
+predictions <- predict(cvfit, analysis, s = "lambda.min", type = "response")
+
+#and print the words which are positively correlated
+fiction_upwords_one <- as_tibble(cor(predictions, analysis))[which(as_tibble(cor(predictions,analysis)) >= 0.7)]
+
+#and the negatively correlated words
+fiction_downwords_one <- as_tibble(cor(predictions, analysis))[which(as_tibble(cor(predictions, analysis)) <= -0.7)]
 
 
 
