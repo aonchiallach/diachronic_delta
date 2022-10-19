@@ -5,7 +5,9 @@ library(reshape2)
 library(ggplot2)
 library(stylo)
 
-#declare the funtions we're going to use; clean_data highlights elements in the word vector we want rid of and return_dist_object takes the completed relative frequency table and gives us the results of a distance algorithm
+#declare the funtions we're going to use
+
+#clean_data highlights elements in the word vector we want rid of 
 clean_data <- function(x) {
   x <- gsub('[[:punct:]]+','', x)
   x <- gsub("[[:space:]]", "", x)
@@ -32,6 +34,7 @@ clean_data <- function(x) {
   return(x)
 }
 
+#normalise data aggregates, pivots and normalises the relative frequency table 
 normalise_data <- function(x) {
   x <- aggregate(. ~ year + word, x, sum)
   x <- x %>% pivot_wider(names_from = word, values_from = termfreq, values_fill = 0, names_repair = "unique")
@@ -39,11 +42,26 @@ normalise_data <- function(x) {
   return(x)
 }
 
+#return_dist_object gives us a relatively neatly separated out distance matrix
 return_dist_object <- function(x) {
   x <- dist.cosine(as.matrix(x))
   x <- melt(as.matrix(x), variable.names(c("to", "from")))
   colnames(x)[1:2] <- c("from", "to")
   return(x)
+}
+
+#correlation analysis gives us a neat object that can be used to carry out a rudimentary topic model, i.e. filtering for words like 'love', or 'home' to see what terms correlate positively or negatively across time
+correlation_analysis <- function(x) {
+  y <- fiction_data[, !sapply(fiction_data, is.character)]
+  y$year...1 <- NULL
+  y <- as.data.frame(y)
+  y[,apply(y, 2, sd) == 0] <- NULL
+  y <- cor(y)
+  y <- na.omit(as_tibble(data.frame(row=rownames(y)[row(y)], col=colnames(y)[col(y)], y=c(y))))
+  y <- y %>% filter(y >= 0.7 | y <= -0.7)
+  y$y <- round(y$y, 2)
+  y <- y[!y$row == y$col,]
+  return(y)
 }
 
 #load in our data
@@ -85,9 +103,15 @@ fiction_data$year <- plyr::mapvalues(fiction_data$year, 1701:1724, rep(1724, len
 poetry_data$year <- plyr::mapvalues(poetry_data$year, 1700:1746, rep(1746, length(1700:1746)))
 drama_data$year <- plyr::mapvalues(drama_data$year, 1704:1749, rep(1749, length(1704:1749)))
 
+#call normalise data on each corpus
 fiction_data <- normalise_data(fiction_data)
 poetry_data <- normalise_data(poetry_data)
 drama_data <- normalise_data(drama_data)
+
+#call correlation analysis on each corpus and assign the result to new correlation objects
+fiction_data_corr <- correlation_analysis(fiction_data)
+poetry_data_corr <- correlation_analysis(poetry_data)
+drama_data_corr <- correlation_analysis(drama_data)
 
 #call the function on each dataset
 fiction_dist <- return_dist_object(fiction_data)
@@ -194,33 +218,6 @@ p <- ggplot(drama_dist, aes(novelty, resonance)) +
 
 p
 
-
-
-#get rid of the character columns
-fiction_data_corr <- fiction_data[, !sapply(fiction_data, is.character)]
-
-fiction_data_corr$year...1 <- NULL
-
-#convert fiction_data_corr into a fiction_data_corrframe
-fiction_data_corr <- as.data.frame(fiction_data_corr)
-
-#remove the columns where standard deviation is zero
-fiction_data_corr[,apply(fiction_data_corr, 2, sd) == 0] <- NULL
-
-#create a correlation matrix
-fiction_data_corr <- cor(fiction_data_corr)
-
-#now we turn the correlation matrix into a fiction_data_corr frame and then a tibble
-fiction_data_corr <- na.omit(as_tibble(data.frame(row=rownames(fiction_data_corr)[row(fiction_data_corr)], col=colnames(fiction_data_corr)[col(fiction_data_corr)], fiction_data_corr=c(fiction_data_corr))))
-
-#remove every insignificant effect size
-fiction_data_corr <- fiction_data_corr %>% filter(fiction_data_corr >= 0.7 | fiction_data_corr <= -0.7)
-
-#round the correlation coefficients to two decimal points
-fiction_data_corr$fiction_data_corr <- round(fiction_data_corr$fiction_data_corr, 2)
-
-#remove autocorrelations
-fiction_data_corr <- fiction_data_corr[!fiction_data_corr$row == fiction_data_corr$col,]
 
 
 
