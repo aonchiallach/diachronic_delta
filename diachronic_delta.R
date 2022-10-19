@@ -220,15 +220,15 @@ p <- ggplot(drama_dist, aes(novelty, resonance)) +
 p
 
 #there are no years which score both a resonance and novelty of over 2 in the fiction dataset, 1750 comes closest
-fiction_dist %>% filter(novelty > 2)
+fiction_dist %>% filter(novelty > 2 & year >= 1735)
 
 #in poetry 1748 does
-poetry_dist %>% filter(novelty > 2 & resonance > 2)
+poetry_dist %>% filter(novelty > 2 & resonance > 2 & year >= 1756)
 
 #and in drama 1756
-drama_dist %>% filter(novelty > 2 & resonance > 2)
+drama_dist %>% filter(novelty > 2 & resonance > 2 & year >= 1760)
 
-#our most pronounced break is 1750 so we need the we need the 82 years which exist on either side of 1837, partitioned into two separate tibbles, pre and post
+#our most pronounced break in the fiction corpus takes place at 1750; twenty-five years into the fiction corpus. we therefore need the twenty-five years on the other side of 1750, partitioned into two separate tibbles, pre and post
 pre <- fiction_data %>% filter(year...1 < 1750)
 post <- fiction_data %>% filter(year...1 < 1777 & year...1 > 1750)
 
@@ -293,5 +293,213 @@ fiction_upwords_one <- as_tibble(cor(predictions, analysis))[which(as_tibble(cor
 fiction_downwords_one <- as_tibble(cor(predictions, analysis))[which(as_tibble(cor(predictions, analysis)) <= -0.7)]
 
 
+
+
+
+
+#our most pronounced break in the fiction corpus takes place at 1750; twenty-five years into the fiction corpus. we therefore need the twenty-five years on the other side of 1750, partitioned into two separate tibbles, pre and post
+pre <- fiction_data %>% filter(year...1 < 1823)
+post <- fiction_data %>% filter(year...1 > 1823)
+
+#replace the date column with either zero or one
+pre$year...1 <- 0
+post$year...1 <- 1
+
+#turn pre and post into dataframes
+pre <- as.data.frame(pre)
+post <- as.data.frame(post)
+
+#create analysis, which incorporates both pre and post
+analysis <- rbind(pre, post)
+
+#turn our year column into a factor
+analysis$year...1 <- as.factor(analysis$year...1)
+
+#create empty varibles for our confusion
+fiction_confusion_one <- 0
+fiction_upwords_one <- 0
+fiction_downwords_one <- 0
+
+#create a train set
+sample <- sample(c(TRUE, FALSE), nrow(analysis), replace=TRUE, prob=c(0.7,0.3))
+train <- analysis[sample,]
+test <- analysis[!sample,]
+
+#take our training and test data from the train and test dataframes
+trainID <- train$year...1
+testID <- test$year...1
+
+#drop these columns from the training, test
+train$year...1 <- NULL
+test$year...1 <- NULL
+
+#we convert the data into a matrix as this is the data structure glmnet needs
+train <- as.matrix(train)
+test <- as.matrix(test)
+
+#we then perform a cross-validated fit
+cvfit <- cv.glmnet(train, trainID, family = "binomial", type.measure = "class", alpha = 0)
+
+#create a confusion matrix to see how often one was predicted as the other and vice versa
+confusion_matrix <- confusion.glmnet(cvfit, newx = test, newy = testID, s = "lambda.min")
+
+#call the confusion matrix
+confusion_matrix
+
+#drop the year column from analysis
+analysis$year...1 <- NULL
+
+#re-create analysis as a matrix
+analysis <- as.matrix(analysis)
+
+#extract the prediction statistics
+predictions <- predict(cvfit, analysis, s = "lambda.min", type = "response")
+
+#and print the words which are positively correlated
+fiction_upwords_one <- as_tibble(cor(predictions, analysis))[which(as_tibble(cor(predictions,analysis)) >= 0.7)]
+
+#and the negatively correlated words
+fiction_downwords_one <- as_tibble(cor(predictions, analysis))[which(as_tibble(cor(predictions, analysis)) <= -0.7)]
+
+
+
+
+
+#our most pronounced break in the poetry corpus takes place at 1750; twenty-five years into the poetry corpus. we therefore need the twenty-five years on the other side of 1750, partitioned into two separate tibbles, pre and post
+pre <- poetry_data %>% filter(year...1 < 1834)
+post <- poetry_data %>% filter(year...1 > 1834)
+
+#replace the date column with either zero or one
+pre$year...1 <- 0
+post$year...1 <- 1
+
+#turn pre and post into dataframes
+pre <- as.data.frame(pre)
+post <- as.data.frame(post)
+
+#create analysis, which incorporates both pre and post
+analysis <- rbind(pre, post)
+
+#turn our year column into a factor
+analysis$year...1 <- as.factor(analysis$year...1)
+
+#create empty varibles for our confusion
+poetry_confusion_one <- 0
+poetry_upwords_one <- 0
+poetry_downwords_one <- 0
+
+#create a train set
+sample <- sample(c(TRUE, FALSE), nrow(analysis), replace=TRUE, prob=c(0.7,0.3))
+train <- analysis[sample,]
+test <- analysis[!sample,]
+
+#take our training and test data from the train and test dataframes
+trainID <- train$year...1
+testID <- test$year...1
+
+#drop these columns from the training, test
+train$year...1 <- NULL
+test$year...1 <- NULL
+
+#we convert the data into a matrix as this is the data structure glmnet needs
+train <- as.matrix(train)
+test <- as.matrix(test)
+
+#we then perform a cross-validated fit
+cvfit <- cv.glmnet(train, trainID, family = "binomial", type.measure = "class", alpha = 0)
+
+#create a confusion matrix to see how often one was predicted as the other and vice versa
+confusion_matrix <- confusion.glmnet(cvfit, newx = test, newy = testID, s = "lambda.min")
+
+#call the confusion matrix
+confusion_matrix
+
+#drop the year column from analysis
+analysis$year...1 <- NULL
+
+#re-create analysis as a matrix
+analysis <- as.matrix(analysis)
+
+#extract the prediction statistics
+predictions <- predict(cvfit, analysis, s = "lambda.min", type = "response")
+
+#and print the words which are positively correlated
+poetry_upwords_one <- as_tibble(cor(predictions, analysis))[which(as_tibble(cor(predictions,analysis)) >= 0.7)]
+
+#and the negatively correlated words
+poetry_downwords_one <- as_tibble(cor(predictions, analysis))[which(as_tibble(cor(predictions, analysis)) <= -0.7)]
+
+
+
+
+
+
+
+
+
+
+#our most pronounced break in the drama corpus takes place at 1750; twenty-five years into the drama corpus. we therefore need the twenty-five years on the other side of 1750, partitioned into two separate tibbles, pre and post
+pre <- drama_data %>% filter(year...1 < 1835)
+post <- drama_data %>% filter(year...1 > 1835)
+
+#replace the date column with either zero or one
+pre$year...1 <- 0
+post$year...1 <- 1
+
+#turn pre and post into dataframes
+pre <- as.data.frame(pre)
+post <- as.data.frame(post)
+
+#create analysis, which incorporates both pre and post
+analysis <- rbind(pre, post)
+
+#turn our year column into a factor
+analysis$year...1 <- as.factor(analysis$year...1)
+
+#create empty varibles for our confusion
+drama_confusion_one <- 0
+drama_upwords_one <- 0
+drama_downwords_one <- 0
+
+#create a train set
+sample <- sample(c(TRUE, FALSE), nrow(analysis), replace=TRUE, prob=c(0.7,0.3))
+train <- analysis[sample,]
+test <- analysis[!sample,]
+
+#take our training and test data from the train and test dataframes
+trainID <- train$year...1
+testID <- test$year...1
+
+#drop these columns from the training, test
+train$year...1 <- NULL
+test$year...1 <- NULL
+
+#we convert the data into a matrix as this is the data structure glmnet needs
+train <- as.matrix(train)
+test <- as.matrix(test)
+
+#we then perform a cross-validated fit
+cvfit <- cv.glmnet(train, trainID, family = "binomial", type.measure = "class", alpha = 0)
+
+#create a confusion matrix to see how often one was predicted as the other and vice versa
+confusion_matrix <- confusion.glmnet(cvfit, newx = test, newy = testID, s = "lambda.min")
+
+#call the confusion matrix
+confusion_matrix
+
+#drop the year column from analysis
+analysis$year...1 <- NULL
+
+#re-create analysis as a matrix
+analysis <- as.matrix(analysis)
+
+#extract the prediction statistics
+predictions <- predict(cvfit, analysis, s = "lambda.min", type = "response")
+
+#and print the words which are positively correlated
+drama_upwords_one <- as_tibble(cor(predictions, analysis))[which(as_tibble(cor(predictions,analysis)) >= 0.7)]
+
+#and the negatively correlated words
+drama_downwords_one <- as_tibble(cor(predictions, analysis))[which(as_tibble(cor(predictions, analysis)) <= -0.7)]
 
 
