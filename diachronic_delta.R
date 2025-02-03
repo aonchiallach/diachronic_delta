@@ -6,8 +6,6 @@ library(ggplot2)
 library(stylo)
 library(glmnet)
 
-#declare the funtions we're going to use
-
 #clean_data highlights elements in the word vector we want rid of 
 clean_data <- function(x) {
   x <- gsub('[[:punct:]]+','', x)
@@ -22,8 +20,8 @@ clean_data <- function(x) {
   x[which(grepl("7", x))] <- "NULL"
   x[which(grepl("8", x))] <- "NULL"
   x[which(grepl("9", x))] <- "NULL"
-  x[which(grepl("Â", x))] <- "NULL"
-  x[which(grepl("â", x))] <- "NULL"
+  x[which(grepl("?", x))] <- "NULL"
+  x[which(grepl("?", x))] <- "NULL"
   x[which(grepl("2", x))] <- "NULL"
   x[which(grepl("3", x))] <- "NULL"
   x[which(grepl("4", x))] <- "NULL"
@@ -70,6 +68,10 @@ fiction_data <- read.csv("fiction_yearly_summary.csv", stringsAsFactors = F)
 poetry_data <- read.csv("poetry_yearly_summary.csv", stringsAsFactors = F)
 drama_data <- read.csv("drama_yearly_summary.csv", stringsAsFactors = F)
 
+fiction_data <- fiction_data %>% filter(year >= 1724)
+poetry_data <- poetry_data %>% filter(year >= 1746)
+drama_data <- drama_data %>% filter(year >= 1749)
+
 #read in roman numerals text file
 roman_numerals <- read.csv("romannumerals.txt", stringsAsFactors = F)
 
@@ -86,23 +88,51 @@ fiction_data$word <- gsub("[[:space:]]", "", fiction_data$word)
 poetry_data$word <- gsub('[[:space:]]','', poetry_data$word)
 drama_data$word <- gsub('[[:space:]]','', drama_data$word)
 
-#apply clean data to each of the word vectors
-fiction_data$word <- clean_data(fiction_data$word)
-poetry_data$word <- clean_data(poetry_data$word)
-drama_data$word <- clean_data(drama_data$word)
-
 #create alpha_vector which contains every letter of the alphabet, except a and i, an empty element, roman numerals and a few other artefacts we want to tidy up 
-alpha_vector <- c("", "ALLTOKENS", "DICTIONARYWORD", "ALPHABETIC", letters[-c(1, 9)], roman_numerals[,1], "NULL")
+alpha_vector <- c("", "ALLTOKENS", "DICTIONARYWORD", "ALPHABETIC", letters[-c(1, 9)], roman_numerals[,1], "NULL", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9")
 
 #remove every element in alpha vector from the data
 fiction_data <- fiction_data %>% filter(!word %in% alpha_vector)
 poetry_data <- poetry_data %>% filter(!word %in% alpha_vector)
 drama_data <- drama_data %>% filter(!word %in% alpha_vector)
 
-#1724, 1746 and 1749 are where the unbroken sequences of years begin, so we sum these into one year for each dataset
-fiction_data$year <- plyr::mapvalues(fiction_data$year, 1701:1724, rep(1724, length(1701:1724)))
-poetry_data$year <- plyr::mapvalues(poetry_data$year, 1700:1746, rep(1746, length(1700:1746)))
-drama_data$year <- plyr::mapvalues(drama_data$year, 1704:1749, rep(1749, length(1704:1749)))
+fiction_data <- fiction_data %>% filter(!word %in% 1:1000)
+poetry_data <- poetry_data %>% filter(!word %in% 1:1000)
+drama_data <- drama_data %>% filter(!word %in% 1:1000)
+
+fiction_data$word <- lemmatize_words(fiction_data$word)
+
+fiction_data <- fiction_data %>% group_by(year, word) %>% summarise(termfreq = sum(termfreq))
+
+totals <- fiction_data %>% group_by(year) %>% summarise(total = sum(termfreq))
+
+fiction_data <- full_join(fiction_data, totals, by = "year")
+
+fiction_data$termfreq <- (fiction_data$termfreq / fiction_data$total) * 100
+
+fiction_data$total <- NULL
+
+fiction_data <- fiction_data %>% pivot_wider(names_from = word, values_from = termfreq, values_fill = 0, names_repair = "unique")
+
+fiction_data[,2:dim(fiction_data)[2]] <- scale(fiction_data[,2:dim(fiction_data)[2]])
+
+y <- fiction_data[, !sapply(fiction_data, is.character)]
+
+y <- as.data.frame(y)
+
+y[,apply(y, 2, sd) == 0] <- NULL
+
+y <- cor(y)
+
+y <- na.omit(as_tibble(data.frame(row=rownames(y)[row(y)], col=colnames(y)[col(y)], y=c(y))))
+
+y <- y %>% filter(y >= 0.7 | y <= -0.7)
+
+y <- y %>% filter(row == "year...1")
+
+y$y <- round(y$y, 2)
+
+y <- y[!y$row == y$col,]
 
 #call normalise data on each corpus
 fiction_data <- normalise_data(fiction_data)
